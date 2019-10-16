@@ -44,4 +44,11 @@ public class MainActivity extends AppCompatActivity {
 
         return super.onOptionsItemSelected(item);
     }
+
+    //TODO:
+    // Buttons: Fly up, Fly Down, Connect
+
+    public void ascend(){}
+    public void decend(){}
+    public void connect(){}
 }
