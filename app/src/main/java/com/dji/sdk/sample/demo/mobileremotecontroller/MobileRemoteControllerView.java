@@ -22,6 +22,7 @@ import com.dji.sdk.sample.internal.utils.ToastUtils;
 import com.dji.sdk.sample.internal.view.PresentableView;
 
 import dji.common.error.DJIError;
+import dji.common.flightcontroller.ConnectionFailSafeBehavior;
 import dji.common.flightcontroller.simulator.InitializationData;
 import dji.common.flightcontroller.simulator.SimulatorState;
 import dji.common.model.LocationCoordinate2D;
@@ -78,6 +79,11 @@ public class MobileRemoteControllerView extends RelativeLayout
         setClickable(true);
         LayoutInflater layoutInflater = (LayoutInflater) context.getSystemService(Service.LAYOUT_INFLATER_SERVICE);
         layoutInflater.inflate(R.layout.view_mobile_rc, this, true);
+
+        // Fail state for network disconnect
+        FlightController flightController = ModuleVerificationUtil.getFlightController();
+        flightController.setConnectionFailSafeBehavior(ConnectionFailSafeBehavior.LANDING, null);
+
         initAllKeys();
         initUI();
     }
