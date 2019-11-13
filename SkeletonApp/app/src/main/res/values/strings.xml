@@ -1,6 +1,0 @@
-<resources>
-    <string name="app_name">ExampleApp</string>
-    <string name="another_activity">Another Activity</string>
-    <string name="show_fragment">Show Fragment</string>
-    <string name="to_home">To Home Screen</string>
-</resources>
