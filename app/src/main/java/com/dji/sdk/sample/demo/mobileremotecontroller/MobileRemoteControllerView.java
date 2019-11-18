@@ -211,12 +211,16 @@ public class MobileRemoteControllerView extends RelativeLayout
                         DialogUtils.showDialogBasedOnError(getContext(), djiError);
                     }
                 });
-                /* Make aircraft turn left */
+                /* Make aircraft go in a direction */
                 mobileRemoteController =
                             ((Aircraft) DJISampleApplication.getAircraftInstance()).getMobileRemoteController();
 
                     if (mobileRemoteController != null) {
-                        mobileRemoteController.setLeftStickHorizontal(-1);
+                        // turn left
+//                        mobileRemoteController.setLeftStickHorizontal(-1);
+
+                        // go straight
+                        mobileRemoteController.setRightStickVertical(1);
                     }
                 break;
             case R.id.btn_force_land:
