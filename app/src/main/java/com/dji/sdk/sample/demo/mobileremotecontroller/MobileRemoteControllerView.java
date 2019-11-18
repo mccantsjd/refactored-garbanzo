@@ -34,6 +34,10 @@ import dji.sdk.flightcontroller.Simulator;
 import dji.sdk.mobilerc.MobileRemoteController;
 import dji.sdk.products.Aircraft;
 
+import dji.common.flightcontroller.LocationCoordinate3D;
+import dji.common.flightcontroller.FlightControllerState;
+
+
 /**
  * Class for mobile remote controller.
  */
@@ -80,12 +84,28 @@ public class MobileRemoteControllerView extends RelativeLayout
         LayoutInflater layoutInflater = (LayoutInflater) context.getSystemService(Service.LAYOUT_INFLATER_SERVICE);
         layoutInflater.inflate(R.layout.view_mobile_rc, this, true);
 
-        // Fail state for network disconnect
+        /* ---- Fail state for network disconnect ---- */
         FlightController flightController = ModuleVerificationUtil.getFlightController();
         flightController.setConnectionFailSafeBehavior(ConnectionFailSafeBehavior.LANDING, null);
+        /* ---- End Fail state for network disconnect ---- */
 
         initAllKeys();
         initUI();
+
+        /* ---- Set New Home Location ---- */
+        ToastUtils.setResultToText(textView,
+                "State : "
+                        + "Home : "
+                        + flightController.getState().getHomeLocation());
+
+        LocationCoordinate2D new_home = new LocationCoordinate2D(0,0);
+        flightController.getState().setHomeLocation(new_home);
+
+        ToastUtils.setResultToText(textView,
+                "State : "
+                        + "Home : "
+                        + flightController.getState().getHomeLocation());
+        /* ---- End Set New Home Location ---- */
     }
 
     private void initAllKeys() {
@@ -116,6 +136,24 @@ public class MobileRemoteControllerView extends RelativeLayout
     }
 
     private void setUpListeners() {
+        /* ---- Detect State Location Change ---- */
+//        FlightController flightController = ModuleVerificationUtil.getFlightController();
+//        flightController.setStateCallback(new FlightControllerState.Callback() {
+//            @Override
+//            public void onUpdate(final FlightControllerState state) {
+//                LocationCoordinate3D location = state.getAircraftLocation();
+//                ToastUtils.setResultToText(textView,
+//                        "Latitude : "
+//                                + location.getLatitude()
+//                                + ","
+//                                + "Longitude : "
+//                                + location.getLongitude()
+//                                + "\n"
+//                                + "Altitude : "
+//                                + location.getAltitude());
+//            }
+//        });
+
         Simulator simulator = ModuleVerificationUtil.getSimulator();
         if (simulator != null) {
             simulator.setStateCallback(new SimulatorState.Callback() {
@@ -211,16 +249,19 @@ public class MobileRemoteControllerView extends RelativeLayout
                         DialogUtils.showDialogBasedOnError(getContext(), djiError);
                     }
                 });
-                /* Make aircraft go in a direction */
+                /* ---- Make aircraft fly in a direction ---- */
                 mobileRemoteController =
                             ((Aircraft) DJISampleApplication.getAircraftInstance()).getMobileRemoteController();
 
                     if (mobileRemoteController != null) {
-                        // turn left
+                        /* ---- Turn left ---- */
 //                        mobileRemoteController.setLeftStickHorizontal(-1);
 
-                        // go straight
-                        mobileRemoteController.setRightStickVertical(1);
+                        /* ---- Turn right ---- */
+//                        mobileRemoteController.setLeftStickHorizontal(1);
+
+                        /* ---- Go Straight ---- */
+//                        mobileRemoteController.setRightStickVertical(1);
                     }
                 break;
             case R.id.btn_force_land:
