@@ -137,22 +137,26 @@ public class MobileRemoteControllerView extends RelativeLayout
 
     private void setUpListeners() {
         /* ---- Detect State Location Change ---- */
-//        FlightController flightController = ModuleVerificationUtil.getFlightController();
-//        flightController.setStateCallback(new FlightControllerState.Callback() {
-//            @Override
-//            public void onUpdate(final FlightControllerState state) {
-//                LocationCoordinate3D location = state.getAircraftLocation();
-//                ToastUtils.setResultToText(textView,
-//                        "Latitude : "
-//                                + location.getLatitude()
-//                                + ","
-//                                + "Longitude : "
-//                                + location.getLongitude()
-//                                + "\n"
-//                                + "Altitude : "
-//                                + location.getAltitude());
-//            }
-//        });
+        FlightController flightController = ModuleVerificationUtil.getFlightController();
+        if (flightController != null) {
+            flightController.setStateCallback(new FlightControllerState.Callback() {
+                @Override
+                public void onUpdate(final FlightControllerState state) {
+                    LocationCoordinate3D location = state.getAircraftLocation();
+                    ToastUtils.setResultToText(textView,
+                                "Latitude : "
+                                    + location.getLatitude()
+                                    + ","
+                                    + "Longitude : "
+                                    + location.getLongitude()
+                                    + "\n"
+                                    + "Altitude : "
+                                    + location.getAltitude());
+                }
+            });
+        } else {
+            ToastUtils.setResultToToast("Disconnected!");
+        }
 
         Simulator simulator = ModuleVerificationUtil.getSimulator();
         if (simulator != null) {
