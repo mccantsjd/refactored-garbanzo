@@ -23,6 +23,8 @@ import com.dji.sdk.sample.internal.view.PresentableView;
 
 import dji.common.error.DJIError;
 import dji.common.flightcontroller.ConnectionFailSafeBehavior;
+import dji.common.flightcontroller.ObstacleDetectionSector;
+import dji.common.flightcontroller.VisionDetectionState;
 import dji.common.flightcontroller.simulator.InitializationData;
 import dji.common.flightcontroller.simulator.SimulatorState;
 import dji.common.model.LocationCoordinate2D;
@@ -30,6 +32,7 @@ import dji.common.util.CommonCallbacks.CompletionCallback;
 import dji.keysdk.FlightControllerKey;
 import dji.keysdk.KeyManager;
 import dji.sdk.flightcontroller.FlightController;
+import dji.sdk.flightcontroller.FlightAssistant;
 import dji.sdk.flightcontroller.Simulator;
 import dji.sdk.mobilerc.MobileRemoteController;
 import dji.sdk.products.Aircraft;
@@ -51,6 +54,9 @@ public class MobileRemoteControllerView extends RelativeLayout
     private OnScreenJoystick screenJoystickLeft;
     private MobileRemoteController mobileRemoteController;
     private FlightControllerKey isSimulatorActived;
+
+    private FlightController flightController;
+    private FlightAssistant flightAssistant;
 
     public MobileRemoteControllerView(Context context) {
         super(context);
@@ -80,8 +86,10 @@ public class MobileRemoteControllerView extends RelativeLayout
         LayoutInflater layoutInflater = (LayoutInflater) context.getSystemService(Service.LAYOUT_INFLATER_SERVICE);
         layoutInflater.inflate(R.layout.view_mobile_rc, this, true);
 
+        flightController = ModuleVerificationUtil.getFlightController();
+        flightAssistant = flightController.getFlightAssistant();
+
         // Fail state for network disconnect
-        FlightController flightController = ModuleVerificationUtil.getFlightController();
         flightController.setConnectionFailSafeBehavior(ConnectionFailSafeBehavior.LANDING, null);
 
         initAllKeys();
@@ -116,6 +124,15 @@ public class MobileRemoteControllerView extends RelativeLayout
     }
 
     private void setUpListeners() {
+        flightAssistant.setVisionDetectionStateUpdatedCallback(new VisionDetectionState.Callback() {
+            @Override
+            public void onUpdate(@NonNull VisionDetectionState visionDetectionState) {
+                ToastUtils.setResultToText(
+                        textView,
+                        visionDetectionState.getSystemWarning().name()
+                );
+            }
+        });
         Simulator simulator = ModuleVerificationUtil.getSimulator();
         if (simulator != null) {
             simulator.setStateCallback(new SimulatorState.Callback() {
