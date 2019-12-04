@@ -33,6 +33,8 @@ import dji.sdk.flightcontroller.FlightController;
 import dji.sdk.flightcontroller.Simulator;
 import dji.sdk.mobilerc.MobileRemoteController;
 import dji.sdk.products.Aircraft;
+import android.os.Handler;
+
 
 /**
  * Class for mobile remote controller.
@@ -195,6 +197,32 @@ public class MobileRemoteControllerView extends RelativeLayout
         screenJoystickLeft.setJoystickListener(null);
         screenJoystickRight.setJoystickListener(null);
     }
+    
+    //should move forward and stop after 2.5 sec
+    public int moveForward(){
+        //forward
+        mobileRemoteController.setRightStickVertical(1);
+
+        //wait 2.5sec and stop
+        final Handler handler = new Handler();
+        handler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                // Do something after 5s = 5000ms
+                // mobileRemoteController.setLeftStickHorizontal(-1);
+                mobileRemoteController.setRightStickVertical(0);
+            }
+        }, 2500);
+        return 0;
+    }
+
+    public int turnLeft(){
+        return 0;
+    }
+
+    public int turnRight(){
+        return 0;
+    }
 
     @Override
     public void onClick(View v) {
@@ -211,6 +239,10 @@ public class MobileRemoteControllerView extends RelativeLayout
                         DialogUtils.showDialogBasedOnError(getContext(), djiError);
                     }
                 });
+
+                moveForward();
+
+
                 break;
             case R.id.btn_force_land:
                 flightController.confirmLanding(new CompletionCallback() {
