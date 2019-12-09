@@ -22,7 +22,6 @@ import com.dji.sdk.sample.internal.utils.ToastUtils;
 import com.dji.sdk.sample.internal.view.PresentableView;
 
 import dji.common.error.DJIError;
-import dji.common.flightcontroller.ConnectionFailSafeBehavior;
 import dji.common.flightcontroller.simulator.InitializationData;
 import dji.common.flightcontroller.simulator.SimulatorState;
 import dji.common.model.LocationCoordinate2D;
@@ -33,6 +32,8 @@ import dji.sdk.flightcontroller.FlightController;
 import dji.sdk.flightcontroller.Simulator;
 import dji.sdk.mobilerc.MobileRemoteController;
 import dji.sdk.products.Aircraft;
+
+import com.dji.sdk.sample.navigation.Navigator;
 
 /**
  * Class for mobile remote controller.
@@ -52,6 +53,8 @@ public class MobileRemoteControllerView extends RelativeLayout
     private MobileRemoteController mobileRemoteController;
     private FlightControllerKey isSimulatorActived;
 
+    private Navigator nav;
+
     public MobileRemoteControllerView(Context context) {
         super(context);
         init(context);
@@ -66,12 +69,10 @@ public class MobileRemoteControllerView extends RelativeLayout
     @Override
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
-        setUpListeners();
     }
 
     @Override
     protected void onDetachedFromWindow() {
-        tearDownListeners();
         super.onDetachedFromWindow();
     }
 
@@ -80,12 +81,10 @@ public class MobileRemoteControllerView extends RelativeLayout
         LayoutInflater layoutInflater = (LayoutInflater) context.getSystemService(Service.LAYOUT_INFLATER_SERVICE);
         layoutInflater.inflate(R.layout.view_mobile_rc, this, true);
 
-        // Fail state for network disconnect
-        FlightController flightController = ModuleVerificationUtil.getFlightController();
-        flightController.setConnectionFailSafeBehavior(ConnectionFailSafeBehavior.LANDING, null);
-
         initAllKeys();
         initUI();
+
+        nav = new Navigator();
     }
 
     private void initAllKeys() {
@@ -115,118 +114,18 @@ public class MobileRemoteControllerView extends RelativeLayout
         }
     }
 
-    private void setUpListeners() {
-        Simulator simulator = ModuleVerificationUtil.getSimulator();
-        if (simulator != null) {
-            simulator.setStateCallback(new SimulatorState.Callback() {
-                @Override
-                public void onUpdate(final SimulatorState djiSimulatorStateData) {
-                    ToastUtils.setResultToText(textView,
-                                               "Yaw : "
-                                                   + djiSimulatorStateData.getYaw()
-                                                   + ","
-                                                   + "X : "
-                                                   + djiSimulatorStateData.getPositionX()
-                                                   + "\n"
-                                                   + "Y : "
-                                                   + djiSimulatorStateData.getPositionY()
-                                                   + ","
-                                                   + "Z : "
-                                                   + djiSimulatorStateData.getPositionZ());
-                }
-            });
-        } else {
-            ToastUtils.setResultToToast("Disconnected!");
-        }
-        try {
-            mobileRemoteController =
-                ((Aircraft) DJISampleApplication.getAircraftInstance()).getMobileRemoteController();
-        } catch (Exception exception) {
-            exception.printStackTrace();
-        }
-        if (mobileRemoteController != null) {
-            textView.setText(textView.getText() + "\n" + "Mobile Connected");
-        } else {
-            textView.setText(textView.getText() + "\n" + "Mobile Disconnected");
-        }
-        screenJoystickLeft.setJoystickListener(new OnScreenJoystickListener() {
-
-            @Override
-            public void onTouch(OnScreenJoystick joystick, float pX, float pY) {
-                if (Math.abs(pX) < 0.02) {
-                    pX = 0;
-                }
-
-                if (Math.abs(pY) < 0.02) {
-                    pY = 0;
-                }
-
-                if (mobileRemoteController != null) {
-                    mobileRemoteController.setLeftStickHorizontal(pX);
-                    mobileRemoteController.setLeftStickVertical(pY);
-                }
-            }
-        });
-
-        screenJoystickRight.setJoystickListener(new OnScreenJoystickListener() {
-
-            @Override
-            public void onTouch(OnScreenJoystick joystick, float pX, float pY) {
-                if (Math.abs(pX) < 0.02) {
-                    pX = 0;
-                }
-
-                if (Math.abs(pY) < 0.02) {
-                    pY = 0;
-                }
-                if (mobileRemoteController != null) {
-                    mobileRemoteController.setRightStickHorizontal(pX);
-                    mobileRemoteController.setRightStickVertical(pY);
-                }
-            }
-        });
-    }
-
-    private void tearDownListeners() {
-        Simulator simulator = ModuleVerificationUtil.getSimulator();
-        if (simulator != null) {
-            simulator.setStateCallback(null);
-        }
-        screenJoystickLeft.setJoystickListener(null);
-        screenJoystickRight.setJoystickListener(null);
-    }
 
     @Override
     public void onClick(View v) {
-        FlightController flightController = ModuleVerificationUtil.getFlightController();
-        if (flightController == null) {
-            return;
-        }
         switch (v.getId()) {
             case R.id.btn_take_off:
-
-                flightController.startTakeoff(new CompletionCallback() {
-                    @Override
-                    public void onResult(DJIError djiError) {
-                        DialogUtils.showDialogBasedOnError(getContext(), djiError);
-                    }
-                });
+                nav.begin();
                 break;
             case R.id.btn_force_land:
-                flightController.confirmLanding(new CompletionCallback() {
-                    @Override
-                    public void onResult(DJIError djiError) {
-                        DialogUtils.showDialogBasedOnError(getContext(), djiError);
-                    }
-                });
+                nav.confirmLand();
                 break;
             case R.id.btn_auto_land:
-                flightController.startLanding(new CompletionCallback() {
-                    @Override
-                    public void onResult(DJIError djiError) {
-                        DialogUtils.showDialogBasedOnError(getContext(), djiError);
-                    }
-                });
+                nav.autoLand();
                 break;
             default:
                 break;
