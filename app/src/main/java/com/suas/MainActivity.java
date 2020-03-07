@@ -1,8 +1,11 @@
 package com.suas;
 
 import android.Manifest;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
@@ -10,6 +13,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 import android.view.View;
+import android.widget.Button;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -35,7 +39,7 @@ public class MainActivity extends AppCompatActivity {
     private static final String TAG = MainActivity.class.getName();
     public static final String FLAG_CONNECTION_CHANGE = "dji_sdk_connection_change";
     private static BaseProduct product;
-    private Handler handler;
+    private Handler uiHandler;
 
     // TODO: Remove unneeded permissions
     private static final String[] REQUIRED_PERMISSION_LIST = new String[]{
@@ -57,8 +61,12 @@ public class MainActivity extends AppCompatActivity {
     private AtomicBoolean isRegistrationInProgress = new AtomicBoolean(false);
     private static final int REQUEST_PERMISSION_CODE = 12345;
 
+    private ConnectivityManager cm;
+
     private TextView regStatus;
+    private TextView regInfo;
     private ProgressBar regProgressBar;
+    private Button regButton;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -66,11 +74,14 @@ public class MainActivity extends AppCompatActivity {
 
         setContentView(R.layout.activity_main);
 
-        //Initialize DJI SDK Manager
-        handler = new Handler(Looper.getMainLooper());
+        uiHandler = new Handler(Looper.getMainLooper());
+
+        cm = (ConnectivityManager)getBaseContext().getSystemService(Context.CONNECTIVITY_SERVICE);
 
         regStatus = (TextView)findViewById(R.id.regStatus);
+        regInfo = (TextView)findViewById(R.id.regInfo);
         regProgressBar = (ProgressBar)findViewById(R.id.regProgressBar);
+        regButton = (Button)findViewById(R.id.regButton);
 
         // When the compile and target version is higher than 22, please request the following permission at runtime to ensure the SDK works well.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -91,14 +102,13 @@ public class MainActivity extends AppCompatActivity {
         }
         // Request for missing permissions
         if (missingPermission.isEmpty()) {
-            startSDKRegistration();
+            regButton.setEnabled(true);
         } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             showToast("Need to grant the permissions!");
             ActivityCompat.requestPermissions(this,
                     missingPermission.toArray(new String[missingPermission.size()]),
                     REQUEST_PERMISSION_CODE);
         }
-
     }
 
     /**
@@ -119,94 +129,102 @@ public class MainActivity extends AppCompatActivity {
         }
         // If there is enough permission, we will start the registration
         if (missingPermission.isEmpty()) {
-            startSDKRegistration();
+            regButton.setEnabled(true);
         } else {
             showToast("Missing permissions!!!");
         }
     }
 
-    private void startSDKRegistration() {
-        if (isRegistrationInProgress.compareAndSet(false, true)) {
-            AsyncTask.execute(new Runnable() {
+    private void onRegistrationSuccess() {
+        uiHandler.post(() -> {
+            regStatus.setText("Success");
+            regStatus.setBackgroundColor(0xFF4CAF50);
+            regProgressBar.setVisibility(View.INVISIBLE);
+            regButton.setEnabled(false);
+            regInfo.setText("");
+        });
+        DJISDKManager.getInstance().startConnectionToProduct();
+    }
+
+    private void onRegistrationFailure(String reason) {
+        uiHandler.post(() -> {
+            regStatus.setText("Failure");
+            regStatus.setBackgroundColor(0xFFF44336);
+            regProgressBar.setVisibility(View.INVISIBLE);
+            regInfo.setText(reason);
+        });
+    }
+
+    public void startSDKRegistration(View v) {
+        NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
+        boolean isConnected = activeNetwork != null && activeNetwork.isConnected();
+        if (!isConnected) {
+            onRegistrationFailure("No internet connectivity");
+        }
+        else if (isRegistrationInProgress.compareAndSet(false, true)) {
+            regProgressBar.setVisibility(View.VISIBLE);
+            DJISDKManager.getInstance().registerApp(MainActivity.this.getApplicationContext(), new DJISDKManager.SDKManagerCallback() {
                 @Override
-                public void run() {
-                    regProgressBar.setVisibility(View.VISIBLE);
-                    DJISDKManager.getInstance().registerApp(MainActivity.this.getApplicationContext(), new DJISDKManager.SDKManagerCallback() {
-                        @Override
-                        public void onRegister(DJIError djiError) {
-                            if (djiError == DJISDKError.REGISTRATION_SUCCESS) {
-                                showToast("Register Success");
-                                handler.post(() -> {
-                                    regStatus.setText("Success");
-                                    regStatus.setBackgroundColor(0xFF4CAF50);
-                                    regProgressBar.setVisibility(View.INVISIBLE);
-                                });
+                public void onRegister(DJIError djiError) {
+                    if (djiError == DJISDKError.REGISTRATION_SUCCESS) {
+                        onRegistrationSuccess();
+                    } else {
+                        onRegistrationFailure(djiError.getDescription());
+                    }
+                    Log.v(TAG, djiError.getDescription());
+                }
 
-                                DJISDKManager.getInstance().startConnectionToProduct();
-                            } else {
-                                showToast("Register sdk fails, please check the bundle id and network connection!");
-                                handler.post(() -> {
-                                    regStatus.setText("Failure");
-                                    regStatus.setBackgroundColor(0xFFF44336);
-                                    regProgressBar.setVisibility(View.INVISIBLE);
-                                });
+                @Override
+                public void onProductDisconnect() {
+                    Log.d(TAG, "onProductDisconnect");
+                    showToast("Product Disconnected");
+                    notifyStatusChange();
+
+                }
+                @Override
+                public void onProductConnect(BaseProduct baseProduct) {
+                    Log.d(TAG, String.format("onProductConnect newProduct:%s", baseProduct));
+                    showToast("Product Connected");
+                    notifyStatusChange();
+
+                }
+                @Override
+                public void onComponentChange(BaseProduct.ComponentKey componentKey, BaseComponent oldComponent,
+                                              BaseComponent newComponent) {
+
+                    if (newComponent != null) {
+                        newComponent.setComponentListener(new BaseComponent.ComponentListener() {
+
+                            @Override
+                            public void onConnectivityChange(boolean isConnected) {
+                                Log.d(TAG, "onComponentConnectivityChanged: " + isConnected);
+                                notifyStatusChange();
                             }
-                            Log.v(TAG, djiError.getDescription());
-                        }
+                        });
+                    }
+                    Log.d(TAG,
+                            String.format("onComponentChange key:%s, oldComponent:%s, newComponent:%s",
+                                    componentKey,
+                                    oldComponent,
+                                    newComponent));
 
-                        @Override
-                        public void onProductDisconnect() {
-                            Log.d(TAG, "onProductDisconnect");
-                            showToast("Product Disconnected");
-                            notifyStatusChange();
+                }
+                @Override
+                public void onInitProcess(DJISDKInitEvent djisdkInitEvent, int i) {
 
-                        }
-                        @Override
-                        public void onProductConnect(BaseProduct baseProduct) {
-                            Log.d(TAG, String.format("onProductConnect newProduct:%s", baseProduct));
-                            showToast("Product Connected");
-                            notifyStatusChange();
+                }
 
-                        }
-                        @Override
-                        public void onComponentChange(BaseProduct.ComponentKey componentKey, BaseComponent oldComponent,
-                                                      BaseComponent newComponent) {
+                @Override
+                public void onDatabaseDownloadProgress(long l, long l1) {
 
-                            if (newComponent != null) {
-                                newComponent.setComponentListener(new BaseComponent.ComponentListener() {
-
-                                    @Override
-                                    public void onConnectivityChange(boolean isConnected) {
-                                        Log.d(TAG, "onComponentConnectivityChanged: " + isConnected);
-                                        notifyStatusChange();
-                                    }
-                                });
-                            }
-                            Log.d(TAG,
-                                    String.format("onComponentChange key:%s, oldComponent:%s, newComponent:%s",
-                                            componentKey,
-                                            oldComponent,
-                                            newComponent));
-
-                        }
-                        @Override
-                        public void onInitProcess(DJISDKInitEvent djisdkInitEvent, int i) {
-
-                        }
-
-                        @Override
-                        public void onDatabaseDownloadProgress(long l, long l1) {
-
-                        }
-                    });
                 }
             });
         }
     }
 
     private void notifyStatusChange() {
-        handler.removeCallbacks(updateRunnable);
-        handler.postDelayed(updateRunnable, 500);
+        uiHandler.removeCallbacks(updateRunnable);
+        uiHandler.postDelayed(updateRunnable, 500);
     }
 
     private Runnable updateRunnable = new Runnable() {
