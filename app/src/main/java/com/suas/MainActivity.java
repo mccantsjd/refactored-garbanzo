@@ -9,6 +9,9 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
+import android.view.View;
+import android.widget.ProgressBar;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -31,9 +34,10 @@ public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = MainActivity.class.getName();
     public static final String FLAG_CONNECTION_CHANGE = "dji_sdk_connection_change";
-    private static BaseProduct mProduct;
-    private Handler mHandler;
+    private static BaseProduct product;
+    private Handler handler;
 
+    // TODO: Remove unneeded permissions
     private static final String[] REQUIRED_PERMISSION_LIST = new String[]{
             Manifest.permission.VIBRATE,
             Manifest.permission.INTERNET,
@@ -53,20 +57,25 @@ public class MainActivity extends AppCompatActivity {
     private AtomicBoolean isRegistrationInProgress = new AtomicBoolean(false);
     private static final int REQUEST_PERMISSION_CODE = 12345;
 
+    private TextView regStatus;
+    private ProgressBar regProgressBar;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        setContentView(R.layout.activity_main);
+
+        //Initialize DJI SDK Manager
+        handler = new Handler(Looper.getMainLooper());
+
+        regStatus = (TextView)findViewById(R.id.regStatus);
+        regProgressBar = (ProgressBar)findViewById(R.id.regProgressBar);
 
         // When the compile and target version is higher than 22, please request the following permission at runtime to ensure the SDK works well.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             checkAndRequestPermissions();
         }
-
-        setContentView(R.layout.activity_main);
-
-        //Initialize DJI SDK Manager
-        mHandler = new Handler(Looper.getMainLooper());
-
     }
 
     /**
@@ -121,15 +130,26 @@ public class MainActivity extends AppCompatActivity {
             AsyncTask.execute(new Runnable() {
                 @Override
                 public void run() {
-                    showToast("registering, pls wait...");
+                    regProgressBar.setVisibility(View.VISIBLE);
                     DJISDKManager.getInstance().registerApp(MainActivity.this.getApplicationContext(), new DJISDKManager.SDKManagerCallback() {
                         @Override
                         public void onRegister(DJIError djiError) {
                             if (djiError == DJISDKError.REGISTRATION_SUCCESS) {
                                 showToast("Register Success");
+                                handler.post(() -> {
+                                    regStatus.setText("Success");
+                                    regStatus.setBackgroundColor(0xFF4CAF50);
+                                    regProgressBar.setVisibility(View.INVISIBLE);
+                                });
+
                                 DJISDKManager.getInstance().startConnectionToProduct();
                             } else {
                                 showToast("Register sdk fails, please check the bundle id and network connection!");
+                                handler.post(() -> {
+                                    regStatus.setText("Failure");
+                                    regStatus.setBackgroundColor(0xFFF44336);
+                                    regProgressBar.setVisibility(View.INVISIBLE);
+                                });
                             }
                             Log.v(TAG, djiError.getDescription());
                         }
@@ -185,8 +205,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void notifyStatusChange() {
-        mHandler.removeCallbacks(updateRunnable);
-        mHandler.postDelayed(updateRunnable, 500);
+        handler.removeCallbacks(updateRunnable);
+        handler.postDelayed(updateRunnable, 500);
     }
 
     private Runnable updateRunnable = new Runnable() {
