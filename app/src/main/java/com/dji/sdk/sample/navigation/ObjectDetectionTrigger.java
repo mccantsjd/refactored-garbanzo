@@ -56,6 +56,7 @@ public class ObjectDetectionTrigger extends Trigger {
         });
     }
 
+
     @Override
     public void stop() {
         fa.setVisionDetectionStateUpdatedCallback(null);
