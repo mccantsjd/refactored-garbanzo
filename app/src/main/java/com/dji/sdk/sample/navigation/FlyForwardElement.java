@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import dji.common.error.DJIError;
 import dji.sdk.mission.MissionControl;
 import dji.sdk.mission.timeline.TimelineElement;
+import dji.sdk.mission.timeline.actions.TakeOffAction;
 import dji.sdk.mission.timeline.triggers.Trigger;
 import dji.sdk.mobilerc.MobileRemoteController;
 import dji.sdk.sdkmanager.DJISDKManager;

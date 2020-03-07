@@ -21,11 +21,14 @@ import dji.sdk.mission.timeline.actions.TakeOffAction;
 import dji.sdk.mission.timeline.triggers.Trigger;
 import dji.sdk.sdkmanager.DJISDKManager;
 
+
+
 public class Navigator {
 
     private MissionControl mc;
     private FlightController fc;
     private FlightAssistant fa;
+    public int n = 0;
 
     public Navigator() {
 
@@ -53,15 +56,40 @@ public class Navigator {
     }
 
     public void begin() {
-        mc.unscheduleEverything();
-        mc.scheduleElement(new TakeOffAction());
+
+        //mc.unscheduleEverything();
+        //mc.scheduleElement(new TakeOffAction());
+
+        Control c = new Control();
+        //ObjectDetectionTrigger trigger = new ObjectDetectionTrigger(new Trigger.Action() {
+          //  @Override
+            //public void onCall() { n = 1; }
+        //});
+
+        c.takeOff();
+        c.forward();
+        c.forward();
+        if(n == 1){
+            c.land();
+        }
+        //land();
+       // mc.scheduleElement(new FlyForwardElement(5));
+       // mc.scheduleElement(new AircraftYawAction(-90.0f, false));
+       // mc.scheduleElement(new FlyForwardElement(5));
+       // mc.scheduleElement(new AircraftYawAction(0, false));
+       // mc.scheduleElement(new FlyForwardElement(5));
+       // mc.scheduleElement(new AircraftYawAction(0, false));
+       // mc.scheduleElement(new FlyForwardElement(5));
+        /*
         mc.scheduleElement(new FlyForwardElement());
         mc.scheduleElement(new AircraftYawAction(-90.0f, false));
         mc.scheduleElement(new FlyForwardElement(4));
         mc.scheduleElement(new AircraftYawAction(90.0f, false));
         mc.scheduleElement(new FlyForwardElement(6));
-        mc.scheduleElement(new LandAction());
-        mc.startTimeline();
+
+         */
+       // mc.scheduleElement(new LandAction());
+       // mc.startTimeline();
     }
 
     private void forceStopMissionTimeline() {
@@ -91,4 +119,11 @@ public class Navigator {
         forceStopMissionTimeline();
         fc.confirmLanding(null);
     }
+
+    public void land(){
+         mc.unscheduleEverything();
+         mc.scheduleElement(new LandAction());
+         mc.startTimeline();
+    }
+
 }
