@@ -6,17 +6,14 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
-import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 import android.view.View;
-import android.widget.Button;
 import android.widget.ProgressBar;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -25,7 +22,6 @@ import androidx.core.content.ContextCompat;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import dji.common.error.DJIError;
 import dji.common.error.DJISDKError;
@@ -40,6 +36,7 @@ public class MainActivity extends AppCompatActivity {
     public static final String FLAG_CONNECTION_CHANGE = "dji_sdk_connection_change";
     private static BaseProduct product;
     private Handler uiHandler;
+    private Handler handler;
 
     // TODO: Remove unneeded permissions
     private static final String[] REQUIRED_PERMISSION_LIST = new String[]{
@@ -58,15 +55,12 @@ public class MainActivity extends AppCompatActivity {
             Manifest.permission.READ_PHONE_STATE,
     };
     private List<String> missingPermission = new ArrayList<>();
-    private AtomicBoolean isRegistrationInProgress = new AtomicBoolean(false);
     private static final int REQUEST_PERMISSION_CODE = 12345;
 
     private ConnectivityManager cm;
 
-    private TextView regStatus;
-    private TextView regInfo;
-    private ProgressBar regProgressBar;
-    private Button regButton;
+    private TextView statusText;
+    private ProgressBar progressBar;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -78,15 +72,22 @@ public class MainActivity extends AppCompatActivity {
 
         cm = (ConnectivityManager)getBaseContext().getSystemService(Context.CONNECTIVITY_SERVICE);
 
-        regStatus = (TextView)findViewById(R.id.regStatus);
-        regInfo = (TextView)findViewById(R.id.regInfo);
-        regProgressBar = (ProgressBar)findViewById(R.id.regProgressBar);
-        regButton = (Button)findViewById(R.id.regButton);
+        // NOTE: Android Studio will say these casts are redundant, but the app crashed without them
+        statusText = (TextView)findViewById(R.id.statusText);
+        progressBar = (ProgressBar)findViewById(R.id.progressBar);
 
         // When the compile and target version is higher than 22, please request the following permission at runtime to ensure the SDK works well.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             checkAndRequestPermissions();
         }
+    }
+
+    private void setStatusText(String text) {
+        uiHandler.post(() -> statusText.setText(text));
+    }
+
+    private void setStatusText(String text, long delay) {
+        uiHandler.postDelayed(() -> statusText.setText(text), delay);
     }
 
     /**
@@ -102,9 +103,9 @@ public class MainActivity extends AppCompatActivity {
         }
         // Request for missing permissions
         if (missingPermission.isEmpty()) {
-            regButton.setEnabled(true);
+            startSDKRegistration();
         } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            showToast("Need to grant the permissions!");
+            setStatusText("Requesting permissions...");
             ActivityCompat.requestPermissions(this,
                     missingPermission.toArray(new String[missingPermission.size()]),
                     REQUEST_PERMISSION_CODE);
@@ -129,47 +130,29 @@ public class MainActivity extends AppCompatActivity {
         }
         // If there is enough permission, we will start the registration
         if (missingPermission.isEmpty()) {
-            regButton.setEnabled(true);
+            startSDKRegistration();
         } else {
-            showToast("Missing permissions!!!");
+            setStatusText("Error: Missing permissions");
         }
     }
 
-    private void onRegistrationSuccess() {
-        uiHandler.post(() -> {
-            regStatus.setText("Success");
-            regStatus.setBackgroundColor(0xFF4CAF50);
-            regProgressBar.setVisibility(View.INVISIBLE);
-            regButton.setEnabled(false);
-            regInfo.setText("");
-        });
-        DJISDKManager.getInstance().startConnectionToProduct();
-    }
-
-    private void onRegistrationFailure(String reason) {
-        uiHandler.post(() -> {
-            regStatus.setText("Failure");
-            regStatus.setBackgroundColor(0xFFF44336);
-            regProgressBar.setVisibility(View.INVISIBLE);
-            regInfo.setText(reason);
-        });
-    }
-
-    public void startSDKRegistration(View v) {
+    public void startSDKRegistration() {
         NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
         boolean isConnected = activeNetwork != null && activeNetwork.isConnected();
         if (!isConnected) {
-            onRegistrationFailure("No internet connectivity");
+            setStatusText("Registration failed: No internet connection detected. \nRetrying...");
+            uiHandler.postDelayed(() -> startSDKRegistration(), 5000);
         }
-        else if (isRegistrationInProgress.compareAndSet(false, true)) {
-            regProgressBar.setVisibility(View.VISIBLE);
+        else {
+            setStatusText("Registering application...");
             DJISDKManager.getInstance().registerApp(MainActivity.this.getApplicationContext(), new DJISDKManager.SDKManagerCallback() {
                 @Override
                 public void onRegister(DJIError djiError) {
                     if (djiError == DJISDKError.REGISTRATION_SUCCESS) {
-                        onRegistrationSuccess();
+                        setStatusText("Waiting for connection to drone WiFi...");
+                        DJISDKManager.getInstance().startConnectionToProduct();
                     } else {
-                        onRegistrationFailure(djiError.getDescription());
+                        setStatusText("Registration failed: " + djiError.getDescription());
                     }
                     Log.v(TAG, djiError.getDescription());
                 }
@@ -177,17 +160,17 @@ public class MainActivity extends AppCompatActivity {
                 @Override
                 public void onProductDisconnect() {
                     Log.d(TAG, "onProductDisconnect");
-                    showToast("Product Disconnected");
                     notifyStatusChange();
-
                 }
+
                 @Override
                 public void onProductConnect(BaseProduct baseProduct) {
                     Log.d(TAG, String.format("onProductConnect newProduct:%s", baseProduct));
-                    showToast("Product Connected");
+                    setStatusText("Drone connection successful");
+                    uiHandler.post(() -> progressBar.setVisibility(View.GONE));
                     notifyStatusChange();
-
                 }
+
                 @Override
                 public void onComponentChange(BaseProduct.ComponentKey componentKey, BaseComponent oldComponent,
                                               BaseComponent newComponent) {
@@ -209,6 +192,7 @@ public class MainActivity extends AppCompatActivity {
                                     newComponent));
 
                 }
+
                 @Override
                 public void onInitProcess(DJISDKInitEvent djisdkInitEvent, int i) {
 
@@ -235,16 +219,4 @@ public class MainActivity extends AppCompatActivity {
             sendBroadcast(intent);
         }
     };
-
-    private void showToast(final String toastMsg) {
-
-        Handler handler = new Handler(Looper.getMainLooper());
-        handler.post(new Runnable() {
-            @Override
-            public void run() {
-                Toast.makeText(getApplicationContext(), toastMsg, Toast.LENGTH_LONG).show();
-            }
-        });
-
-    }
 }
