@@ -167,8 +167,11 @@ public class MainActivity extends AppCompatActivity {
                 public void onProductConnect(BaseProduct baseProduct) {
                     Log.d(TAG, String.format("onProductConnect newProduct:%s", baseProduct));
                     setStatusText("Drone connection successful");
-                    uiHandler.post(() -> progressBar.setVisibility(View.GONE));
-                    notifyStatusChange();
+                    uiHandler.postDelayed(() -> {
+                        progressBar.setVisibility(View.GONE);
+                        Intent intent = new Intent(MainActivity.this, MissionControlActivity.class);
+                        startActivity(intent);
+                    }, 1000);
                 }
 
                 @Override
