@@ -30,6 +30,28 @@
 
         <LinearLayout
             android:layout_width="match_parent"
+            android:layout_height="70dp"
+            android:background="#DADADA"
+            android:orientation="horizontal"
+            android:showDividers="none">
+
+            <TextView
+                android:id="@+id/textView3"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="0"
+                android:text="Status: "
+                android:textAppearance="@style/TextAppearance.AppCompat.Body2" />
+
+            <TextView
+                android:id="@+id/statusText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Idle" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal">
 
@@ -55,7 +77,9 @@
                 android:backgroundTint="@android:color/holo_red_dark"
                 android:onClick="emergencyLanding"
                 android:text="Emergency Landing" />
+
         </LinearLayout>
+
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
